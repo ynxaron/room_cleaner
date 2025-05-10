@@ -1,0 +1,1 @@
+/home/nyx/Codes/room_cleaner/target/wasm32-unknown-unknown/debug/frontend.wasm: /home/nyx/Codes/room_cleaner/frontend/src/app.rs /home/nyx/Codes/room_cleaner/frontend/src/main.rs /home/nyx/Codes/room_cleaner/frontend/src/models.rs
