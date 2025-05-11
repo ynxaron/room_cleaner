@@ -6,10 +6,26 @@ pub fn schedule_tasks(rooms: Vec<Room>) -> Vec<Task> {
         .filter(|r| !r.is_clean)
         .map(|r| {
             let mut priority = 0;
+
+            // Dirty room
+            priority += 1;
+
+            // Unoccupied gets higher priority
             if !r.is_occupied {
                 priority += 2;
             }
-            priority += 1; // dirty always increases priority
+
+            // Urgency factor: scaled 0-10
+            priority += r.urgency as u32;
+
+            // Cleaner speed factor: scaled 0-10
+            priority += r.cleaner_speed as u32;
+
+            // Booked long gets a bit of weight
+            if r.booked_long {
+                priority += 1;
+            }
+
             Task {
                 room_no: r.room_no,
                 priority,

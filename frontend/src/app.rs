@@ -9,35 +9,38 @@ pub fn app() -> Html {
     let room_no = use_state(|| 0);
     let is_clean = use_state(|| false);
     let is_occupied = use_state(|| false);
+    let urgency = use_state(|| 0);
+    let cleaner_speed = use_state(|| 0);
+    let booked_long = use_state(|| false);
+
     let tasks = use_state(|| vec![] as Vec<Task>);
     let room_list = use_state(|| vec![] as Vec<Room>);
 
     let on_submit = {
-        let room_no_val = *room_no;
-        let is_clean_val = *is_clean;
-        let is_occupied_val = *is_occupied;
-
-        let room_list_clone = (*room_list).clone();
-        let tasks_clone = tasks.clone();
         let room_list_state = room_list.clone();
+        let tasks_state = tasks.clone();
+
+        let room = Room {
+            room_no: *room_no,
+            is_clean: *is_clean,
+            is_occupied: *is_occupied,
+            urgency: *urgency,
+            cleaner_speed: *cleaner_speed,
+            booked_long: *booked_long,
+        };
 
         Callback::from(move |e: SubmitEvent| {
-            e.prevent_default(); // Prevent form submission
+            e.prevent_default();
 
-            let mut updated = room_list_clone.clone();
-            updated.push(Room {
-                room_no: room_no_val,
-                is_clean: is_clean_val,
-                is_occupied: is_occupied_val,
-            });
+            let mut updated_rooms = (*room_list_state).clone();
+            updated_rooms.push(room.clone());
+            room_list_state.set(updated_rooms.clone());
 
-            room_list_state.set(updated.clone());
-
-            let tasks_clone2 = tasks_clone.clone();
+            let tasks_state = tasks_state.clone();
             spawn_local(async move {
                 let Ok(resp) = Request::post("http://localhost:3000/schedule")
                     .header("Content-Type", "application/json")
-                    .body(serde_json::to_string(&updated).unwrap())
+                    .body(serde_json::to_string(&updated_rooms).unwrap())
                     .send()
                     .await
                 else {
@@ -48,7 +51,7 @@ pub fn app() -> Html {
                     return;
                 };
 
-                tasks_clone2.set(data);
+                tasks_state.set(data);
             });
         })
     };
@@ -106,6 +109,62 @@ pub fn app() -> Html {
                     </label>
                 </div>
 
+                <div>
+                    <label for="urgency">{ "Urgency of Cleaning:" }</label>
+                    <input
+                        type="range"
+                        id="urgency"
+                        min="0"
+                        max="10"
+                        value={urgency.to_string()}
+                        style={format!("background: linear-gradient(to right, green, red {}%)", *urgency * 10)}
+                        oninput={Callback::from({
+                            let urgency = urgency.clone();
+                            move |e: InputEvent| {
+                                if let Some(input) = e.target_dyn_into::<HtmlInputElement>() {
+                                    urgency.set(input.value_as_number() as u8);
+                                }
+                            }
+                        })}
+                    />
+                </div>
+
+                <div>
+                    <label for="speed">{ "Cleaner Speed Required:" }</label>
+                    <input
+                        type="range"
+                        id="speed"
+                        min="0"
+                        max="10"
+                        value={cleaner_speed.to_string()}
+                        style={format!("background: linear-gradient(to right, green, red {}%)", *cleaner_speed * 10)}
+                        oninput={Callback::from({
+                            let cleaner_speed = cleaner_speed.clone();
+                            move |e: InputEvent| {
+                                if let Some(input) = e.target_dyn_into::<HtmlInputElement>() {
+                                    cleaner_speed.set(input.value_as_number() as u8);
+                                }
+                            }
+                        })}
+                    />
+                </div>
+
+                <div>
+                    <label>
+                        <input
+                            type="checkbox"
+                            onchange={Callback::from({
+                                let booked_long = booked_long.clone();
+                                move |e: Event| {
+                                    let input = e.target_dyn_into::<HtmlInputElement>().unwrap();
+                                    booked_long.set(input.checked());
+                                }
+                            })}
+                        />
+                        { "Booked for more than 3 days?" }
+                    </label>
+                </div>
+
                 <button type="submit">{ "Add Room & Recalculate" }</button>
             </form>
 
@@ -113,7 +172,7 @@ pub fn app() -> Html {
             <ul>
                 { for tasks.iter().map(|t| html! {
                     <li>{ format!("Room {} - Priority {}", t.room_no, t.priority) }</li>
-                })}
+                }) }
             </ul>
         </div>
     }
